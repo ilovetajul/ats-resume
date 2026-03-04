@@ -3,7 +3,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     return res.status(500).json({ error: "API key not configured" });
   }
@@ -13,16 +13,18 @@ export default async function handler(req, res) {
     if (!prompt) return res.status(400).json({ error: "Prompt required" });
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      "https://api.groq.com/openai/v1/chat/completions",
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`,
+        },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 4096,
-          },
+          model: "llama-3.3-70b-versatile",
+          messages: [{ role: "user", content: prompt }],
+          max_tokens: 4096,
+          temperature: 0.7,
         }),
       }
     );
@@ -31,13 +33,13 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       return res.status(response.status).json({
-        error: data.error?.message || "Gemini API error",
+        error: data.error?.message || "Groq API error",
       });
     }
 
-    const result = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const result = data.choices?.[0]?.message?.content || "";
     if (!result) {
-      return res.status(500).json({ error: "Empty response from Gemini" });
+      return res.status(500).json({ error: "Empty response from Groq" });
     }
 
     return res.status(200).json({ result });
@@ -45,4 +47,4 @@ export default async function handler(req, res) {
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
-      }
+}
